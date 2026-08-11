@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Badge } from "@/components/ui/Badge";
+import { DomainIntro } from "@/components/ui/DomainIntro";
 import { Panel } from "@/components/ui/Panel";
 import { getDomain } from "@/lib/shared/domains";
 
@@ -118,17 +118,19 @@ export default function WorkflowPage() {
       // The server already ran the full pipeline synchronously (Vercel's
       // Node runtime can't guarantee background work after a response), so
       // this replays the real stages the run actually went through with a
-      // deliberate pace instead of a client-side fabrication.
-      await sleep(REVEAL_STAGE_DELAY_MS);
-      setActiveRun((prev) => (prev ? { ...prev, status: "enriching" } : prev));
+      // deliberate pace instead of a client-side fabrication. Each snapshot
+      // is a partial patch merged onto the run in progress; the final one
+      // is the real row returned by the server.
+      const stageSnapshots: Array<Partial<PipelineRun>> = [
+        { status: "enriching" },
+        { status: "forwarding", enrichment: finalRun.enrichment },
+        finalRun,
+      ];
 
-      await sleep(REVEAL_STAGE_DELAY_MS);
-      setActiveRun((prev) =>
-        prev ? { ...prev, status: "forwarding", enrichment: finalRun.enrichment } : prev
-      );
-
-      await sleep(REVEAL_STAGE_DELAY_MS);
-      setActiveRun(finalRun);
+      for (const snapshot of stageSnapshots) {
+        await sleep(REVEAL_STAGE_DELAY_MS);
+        setActiveRun((prev) => (prev ? { ...prev, ...snapshot } : prev));
+      }
       loadRuns();
     } finally {
       setSubmitting(false);
@@ -137,29 +139,7 @@ export default function WorkflowPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-8">
-      <header className="mb-6">
-        <p className="font-mono text-xs" style={{ color: domain.colorHex }}>
-          {domain.githubRepo}
-        </p>
-        <h1 className="font-display text-2xl font-semibold text-ink">{domain.label}</h1>
-      </header>
-
-      <Panel accent={domain.colorHex} className="mb-6 p-5">
-        <p className="text-sm text-ink-dim">{domain.tagline}</p>
-        <ol className="mt-3 space-y-1.5 text-sm text-ink">
-          {FLOW_STEPS.map((step, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-mono text-xs text-ink-dim">{i + 1}.</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {domain.techBadges.map((b) => (
-            <Badge key={b}>{b}</Badge>
-          ))}
-        </div>
-      </Panel>
+      <DomainIntro domain={domain} steps={FLOW_STEPS} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Panel className="p-5">

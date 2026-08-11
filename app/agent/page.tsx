@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Badge } from "@/components/ui/Badge";
+import { useEffect, useState, type FormEvent } from "react";
+import { ChatThread, type ChatBubbleMessage } from "@/components/ui/ChatThread";
+import { DomainIntro } from "@/components/ui/DomainIntro";
 import { Panel } from "@/components/ui/Panel";
 import { getDomain } from "@/lib/shared/domains";
 
@@ -20,13 +21,6 @@ interface ToolCallTrace {
   error?: string;
 }
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "error";
-  content: string;
-  toolCalls?: ToolCallTrace[];
-}
-
 const SESSION_STORAGE_KEY = "automation-ops-dashboard.agent.sessionId";
 const CLIENT_TIMEOUT_MS = 30_000;
 
@@ -36,12 +30,28 @@ const EXAMPLE_PROMPTS = [
   "What time is it in Tokyo right now?",
 ];
 
+function ToolCallChips({ toolCalls }: { toolCalls: ToolCallTrace[] }) {
+  if (toolCalls.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {toolCalls.map((tc, i) => (
+        <span
+          key={i}
+          className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink-dim"
+          title={JSON.stringify(tc.result ?? tc.error)}
+        >
+          🔧 {tc.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function AgentPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatBubbleMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let id = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -51,10 +61,6 @@ export default function AgentPage() {
     }
     setSessionId(id);
   }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
 
   async function send(text: string) {
     if (!text.trim() || loading || !sessionId) return;
@@ -83,9 +89,10 @@ export default function AgentPage() {
         return;
       }
 
+      const toolCalls: ToolCallTrace[] = data.toolCalls ?? [];
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: data.reply, toolCalls: data.toolCalls },
+        { id: crypto.randomUUID(), role: "assistant", content: data.reply, meta: <ToolCallChips toolCalls={toolCalls} /> },
       ]);
     } catch {
       setMessages((prev) => [
@@ -105,33 +112,14 @@ export default function AgentPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <header className="mb-6">
-        <p className="font-mono text-xs" style={{ color: domain.colorHex }}>
-          {domain.githubRepo}
-        </p>
-        <h1 className="font-display text-2xl font-semibold text-ink">{domain.label}</h1>
-      </header>
-
-      <Panel accent={domain.colorHex} className="mb-6 p-5">
-        <p className="text-sm text-ink-dim">{domain.tagline}</p>
-        <ol className="mt-3 space-y-1.5 text-sm text-ink">
-          {FLOW_STEPS.map((step, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-mono text-xs text-ink-dim">{i + 1}.</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {domain.techBadges.map((b) => (
-            <Badge key={b}>{b}</Badge>
-          ))}
-        </div>
-      </Panel>
+      <DomainIntro domain={domain} steps={FLOW_STEPS} />
 
       <Panel className="flex h-[60vh] flex-col overflow-hidden">
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && (
+        <ChatThread
+          messages={messages}
+          loading={loading}
+          accentColor={domain.colorHex}
+          emptyState={
             <div className="mt-4 space-y-3 text-center">
               <p className="text-sm text-ink-dim">
                 Memory persists across turns in this session — try a follow-up question.
@@ -148,49 +136,8 @@ export default function AgentPage() {
                 ))}
               </div>
             </div>
-          )}
-
-          {messages.map((m) => (
-            <div key={m.id} className={`flex animate-fade-in-up ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className="max-w-[85%] space-y-1.5">
-                <div
-                  className={`whitespace-pre-wrap rounded-xl px-4 py-2.5 text-sm ${
-                    m.role === "user"
-                      ? "text-void"
-                      : m.role === "error"
-                        ? "border border-status-error/30 bg-status-error/10 text-status-error"
-                        : "bg-panel-raised text-ink"
-                  }`}
-                  style={m.role === "user" ? { backgroundColor: domain.colorHex } : undefined}
-                >
-                  {m.content}
-                </div>
-                {m.toolCalls && m.toolCalls.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {m.toolCalls.map((tc, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink-dim"
-                        title={JSON.stringify(tc.result ?? tc.error)}
-                      >
-                        🔧 {tc.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="flex w-fit animate-fade-in-up items-center gap-1.5 rounded-xl bg-panel-raised px-4 py-3">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim" />
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+          }
+        />
 
         <form onSubmit={handleSubmit} className="flex gap-2 border-t border-line p-3">
           <input

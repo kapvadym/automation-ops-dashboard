@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import { StatusRail } from "@/components/ui/StatusRail";
+import { StatusProvider } from "@/components/ui/StatusProvider";
 import "./globals.css";
 
 const display = Space_Grotesk({
@@ -31,8 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="flex min-h-screen flex-col bg-void font-body text-ink md:flex-row">
-        <StatusRail />
-        <main className="min-w-0 flex-1">{children}</main>
+        <StatusProvider>
+          <StatusRail />
+          <main className="min-w-0 flex-1">{children}</main>
+        </StatusProvider>
       </body>
     </html>
   );

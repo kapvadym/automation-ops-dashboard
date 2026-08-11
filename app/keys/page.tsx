@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Badge } from "@/components/ui/Badge";
+import { DomainIntro } from "@/components/ui/DomainIntro";
 import { Panel } from "@/components/ui/Panel";
 import { getDomain } from "@/lib/shared/domains";
 import { ALLOWED_SCOPES } from "@/lib/keys/scopes";
@@ -86,34 +86,11 @@ export default function KeysPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <header className="mb-6">
-        <p className="font-mono text-xs" style={{ color: domain.colorHex }}>
-          {domain.githubRepo}
-        </p>
-        <h1 className="font-display text-2xl font-semibold text-ink">{domain.label}</h1>
-      </header>
-
-      <Panel accent={domain.colorHex} className="mb-6 p-5">
-        <p className="text-sm text-ink-dim">{domain.tagline}</p>
-        <ol className="mt-3 space-y-1.5 text-sm text-ink">
-          {FLOW_STEPS.map((step, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-mono text-xs text-ink-dim">{i + 1}.</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {domain.techBadges.map((b) => (
-            <Badge key={b}>{b}</Badge>
-          ))}
-        </div>
-        <p className="mt-3 rounded-md border border-status-pending/30 bg-status-pending/10 px-3 py-2 text-xs text-status-pending">
-          Shared public demo account — everyone visiting this page sees the same key list. In the
-          original project this is real per-user Supabase Auth with row-level security; here it's
-          one fixed demo account so you can try it without signing up.
-        </p>
-      </Panel>
+      <DomainIntro
+        domain={domain}
+        steps={FLOW_STEPS}
+        note="Shared public demo account — everyone visiting this page sees the same key list. In the original project this is real per-user Supabase Auth with row-level security; here it's one fixed demo account so you can try it without signing up."
+      />
 
       {revealedKey && (
         <Panel className="mb-6 border-status-healthy/40 p-4">

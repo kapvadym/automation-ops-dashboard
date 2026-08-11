@@ -9,6 +9,10 @@ export interface DomainMeta {
   githubRepo: string;
   tagline: string;
   techBadges: string[];
+  /** Primary table this domain's /api/status health check + counts query. */
+  table: string;
+  /** Unit label for that count on the overview page's stat tile. */
+  statLabel: string;
 }
 
 // Single source of truth for the 4 domains — drives the status rail nav,
@@ -25,6 +29,8 @@ export const DOMAINS: DomainMeta[] = [
     tagline:
       "Answers questions from documentation with cited, grounded sources — refuses to guess outside its docs.",
     techBadges: ["Next.js", "Gemini", "pgvector"],
+    table: "rag_documents",
+    statLabel: "doc chunks indexed",
   },
   {
     id: "workflow",
@@ -36,6 +42,8 @@ export const DOMAINS: DomainMeta[] = [
     tagline:
       "Classifies an incoming support ticket with Gemini and forwards a triage alert, tracking each run's status.",
     techBadges: ["Express", "Gemini", "Slack"],
+    table: "workflow_pipeline_runs",
+    statLabel: "triage runs",
   },
   {
     id: "agent",
@@ -47,6 +55,8 @@ export const DOMAINS: DomainMeta[] = [
     tagline:
       "A conversational agent that calls real tools — calculator, web search, product lookup — and remembers the conversation.",
     techBadges: ["Next.js", "Gemini tool-calling", "Tavily"],
+    table: "agent_sessions",
+    statLabel: "agent sessions",
   },
   {
     id: "keys",
@@ -58,6 +68,8 @@ export const DOMAINS: DomainMeta[] = [
     tagline:
       "Issue, list, and revoke API keys — shown once in plaintext, hashed thereafter.",
     techBadges: ["Next.js", "Supabase Auth", "SHA-256"],
+    table: "keys_api_keys",
+    statLabel: "active keys",
   },
 ];
 

@@ -5,13 +5,9 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
 import { StatTile } from "@/components/ui/StatTile";
-import { StatusPill, type SystemStatus } from "@/components/ui/StatusPill";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { useStatusContext } from "@/components/ui/StatusProvider";
 import { DOMAINS, type DomainId } from "@/lib/shared/domains";
-
-type StatusResponse = {
-  status: Record<DomainId, SystemStatus>;
-  counts: Record<DomainId, number>;
-};
 
 interface ActivityEvent {
   id: string;
@@ -19,13 +15,6 @@ interface ActivityEvent {
   label: string;
   timestamp: string;
 }
-
-const STAT_LABEL: Record<DomainId, string> = {
-  rag: "doc chunks indexed",
-  workflow: "triage runs",
-  agent: "agent sessions",
-  keys: "active keys",
-};
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -38,20 +27,16 @@ function timeAgo(iso: string): string {
 }
 
 export default function OverviewPage() {
-  const [data, setData] = useState<StatusResponse | null>(null);
+  const { status, counts } = useStatusContext();
   const [events, setEvents] = useState<ActivityEvent[]>([]);
 
   useEffect(() => {
-    async function load() {
-      const [statusRes, activityRes] = await Promise.all([
-        fetch("/api/status", { cache: "no-store" }),
-        fetch("/api/activity", { cache: "no-store" }),
-      ]);
-      if (statusRes.ok) setData(await statusRes.json());
-      if (activityRes.ok) setEvents((await activityRes.json()).events);
+    async function loadActivity() {
+      const res = await fetch("/api/activity", { cache: "no-store" });
+      if (res.ok) setEvents((await res.json()).events);
     }
-    load();
-    const interval = setInterval(load, 15_000);
+    loadActivity();
+    const interval = setInterval(loadActivity, 15_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -71,11 +56,11 @@ export default function OverviewPage() {
           <Panel key={domain.id} accent={domain.colorHex} className="p-5">
             <div className="mb-2 flex items-start justify-between gap-2">
               <h2 className="font-display text-base font-semibold text-ink">{domain.label}</h2>
-              <StatusPill status={data?.status[domain.id] ?? "unknown"} />
+              <StatusPill status={status[domain.id]} />
             </div>
             <p className="mb-4 text-sm text-ink-dim">{domain.tagline}</p>
             <div className="mb-4 flex items-center gap-6">
-              <StatTile label={STAT_LABEL[domain.id]} value={data?.counts[domain.id] ?? "—"} />
+              <StatTile label={domain.statLabel} value={counts[domain.id] ?? "—"} />
             </div>
             <div className="mb-4 flex flex-wrap gap-2">
               {domain.techBadges.map((b) => (

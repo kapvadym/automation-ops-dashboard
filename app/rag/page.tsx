@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Badge } from "@/components/ui/Badge";
+import { useRef, useState, type FormEvent } from "react";
+import { ChatThread, type ChatBubbleMessage } from "@/components/ui/ChatThread";
+import { DomainIntro } from "@/components/ui/DomainIntro";
 import { Panel } from "@/components/ui/Panel";
 import { getDomain } from "@/lib/shared/domains";
 
@@ -12,13 +13,6 @@ interface Source {
   similarity: number;
 }
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "error";
-  content: string;
-  sources?: Source[];
-}
-
 const CLIENT_TIMEOUT_MS = 25_000;
 
 const FLOW_STEPS = [
@@ -27,17 +21,25 @@ const FLOW_STEPS = [
   "Gemini writes a grounded answer, citing the chunks it actually used.",
 ];
 
+function SourceChips({ sources }: { sources: Source[] }) {
+  if (sources.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {sources.map((s, i) => (
+        <li key={i} className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink-dim">
+          [{i + 1}] {s.source} · {(s.similarity * 100).toFixed(0)}%
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function RagPage() {
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatBubbleMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const abortReasonRef = useRef<"manual" | "timeout" | null>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
 
   function handleStop() {
     abortReasonRef.current = "manual";
@@ -80,9 +82,10 @@ export default function RagPage() {
         return;
       }
 
+      const sources: Source[] = data.sources ?? [];
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: data.answer, sources: data.sources ?? [] },
+        { id: crypto.randomUUID(), role: "assistant", content: data.answer, meta: <SourceChips sources={sources} /> },
       ]);
     } catch (err) {
       const wasAborted = err instanceof DOMException && err.name === "AbortError";
@@ -102,83 +105,23 @@ export default function RagPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-      <header className="mb-6">
-        <p className="font-mono text-xs" style={{ color: domain.colorHex }}>
-          {domain.githubRepo}
-        </p>
-        <h1 className="font-display text-2xl font-semibold text-ink">{domain.label}</h1>
-      </header>
-
-      <Panel accent={domain.colorHex} className="mb-6 p-5">
-        <p className="text-sm text-ink-dim">{domain.tagline}</p>
-        <ol className="mt-3 space-y-1.5 text-sm text-ink">
-          {FLOW_STEPS.map((step, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-mono text-xs text-ink-dim">{i + 1}.</span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {domain.techBadges.map((b) => (
-            <Badge key={b}>{b}</Badge>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-ink-dim">
-          Docs corpus: a small fictional REST API ("Acme Tasks API") — ask about
-          authentication, endpoints, rate limits, or errors. Off-topic questions get an
-          honest "I don't know" instead of a guess.
-        </p>
-      </Panel>
+      <DomainIntro
+        domain={domain}
+        steps={FLOW_STEPS}
+        note={
+          'Docs corpus: a small fictional REST API ("Acme Tasks API") — ask about authentication, endpoints, rate limits, or errors. Off-topic questions get an honest "I don\'t know" instead of a guess.'
+        }
+      />
 
       <Panel className="flex h-[60vh] flex-col overflow-hidden">
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && (
-            <p className="mt-6 text-center text-sm text-ink-dim">
-              Ask anything about the Acme Tasks API docs.
-            </p>
-          )}
-
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex animate-fade-in-up ${message.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div className="max-w-[85%] space-y-2">
-                <div
-                  className={`whitespace-pre-wrap rounded-xl px-4 py-2.5 text-sm ${
-                    message.role === "user"
-                      ? "text-void"
-                      : message.role === "error"
-                        ? "border border-status-error/30 bg-status-error/10 text-status-error"
-                        : "bg-panel-raised text-ink"
-                  }`}
-                  style={message.role === "user" ? { backgroundColor: domain.colorHex } : undefined}
-                >
-                  {message.content}
-                </div>
-                {message.role === "assistant" && message.sources && message.sources.length > 0 && (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {message.sources.map((s, i) => (
-                      <li key={i} className="rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-ink-dim">
-                        [{i + 1}] {s.source} · {(s.similarity * 100).toFixed(0)}%
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="flex animate-fade-in-up items-center gap-1.5 rounded-xl bg-panel-raised px-4 py-3 w-fit">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-dim" />
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+        <ChatThread
+          messages={messages}
+          loading={loading}
+          accentColor={domain.colorHex}
+          emptyState={
+            <p className="mt-6 text-center text-sm text-ink-dim">Ask anything about the Acme Tasks API docs.</p>
+          }
+        />
 
         <form onSubmit={handleAsk} className="flex gap-2 border-t border-line p-3">
           <input

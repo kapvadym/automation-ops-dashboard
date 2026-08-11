@@ -2,57 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { DOMAINS, type DomainId } from "@/lib/shared/domains";
-import { StatusPill, type SystemStatus } from "./StatusPill";
-
-type StatusMap = Record<DomainId, SystemStatus>;
-
-const INITIAL_STATUS: StatusMap = {
-  rag: "pending",
-  workflow: "pending",
-  agent: "pending",
-  keys: "pending",
-};
-
-const POLL_INTERVAL_MS = 15_000;
+import { DOMAINS } from "@/lib/shared/domains";
+import { StatusPill } from "./StatusPill";
+import { useStatusContext } from "./StatusProvider";
 
 // The signature element from the Visual design plan: this nav doubles as a
-// live status readout (each dot is a real /api/status health check, not
-// decorative), so browsing the portfolio and watching the systems run are
-// the same object.
+// live status readout (each dot reflects a real /api/status health check,
+// not decorative), so browsing the portfolio and watching the systems run
+// are the same object.
 export function StatusRail() {
   const pathname = usePathname();
-  const [status, setStatus] = useState<StatusMap>(INITIAL_STATUS);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function poll() {
-      try {
-        const res = await fetch("/api/status", { cache: "no-store" });
-        if (!res.ok) throw new Error("status check failed");
-        const data = await res.json();
-        if (!cancelled) setStatus(data.status);
-      } catch {
-        if (!cancelled) {
-          setStatus((prev) => {
-            const next = { ...prev };
-            for (const domain of DOMAINS) next[domain.id] = "error";
-            return next;
-          });
-        }
-      }
-    }
-
-    poll();
-    const interval = setInterval(poll, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
+  const { status } = useStatusContext();
   const isOverview = pathname === "/";
 
   const entries = (
