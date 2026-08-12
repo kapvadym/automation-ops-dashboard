@@ -4,6 +4,8 @@ A live systems console for 4 backend/AI-agent projects — one Next.js app,
 one Supabase project, real Gemini calls. Every metric and demo hits a real
 database, not fixtures.
 
+https://automation-ops-dashboard.vercel.app/
+
 | domain | what it does | tech | source |
 |---|---|---|---|
 | **RAG Docs Agent** | Answers questions from documentation with cited, grounded sources — refuses to guess outside its docs. | Gemini + pgvector | [kapvadym/rag-docs-support-agent](https://github.com/kapvadym/rag-docs-support-agent) |
