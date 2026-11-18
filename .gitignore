@@ -8,3 +8,13 @@ dist
 next-env.d.ts
 CLAUDE.md
 .vercel
+
+# assistant tooling
+AGENTS.md
+PROGRESS.md
+.claude/
+.mcp.json
+.env*
+!.env.example
+*.pem
+*.key
