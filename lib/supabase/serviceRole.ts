@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { noStoreFetch } from "./noStoreFetch";
 
 // Server-only, bypasses RLS. The keys domain has no real login (see
 // lib/keys — DEMO_USER_ID), so there's no auth.uid() session to scope a
@@ -18,5 +19,6 @@ export function createServiceRoleClient() {
 
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: noStoreFetch },
   });
 }
