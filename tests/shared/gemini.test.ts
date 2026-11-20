@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { generateWithFallback, isProviderBusy } from "@/lib/shared/gemini";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { generateWithFallback, isProviderBusy, resetBusyModels } from "@/lib/shared/gemini";
+
+beforeEach(() => resetBusyModels());
 
 const busy = (status: number) => Object.assign(new Error(`status ${status}`), { status });
 
@@ -41,5 +43,24 @@ describe("generateWithFallback", () => {
   it("rethrows the last busy error when every model is busy", async () => {
     const call = vi.fn().mockRejectedValueOnce(busy(503)).mockRejectedValueOnce(busy(429));
     await expect(generateWithFallback(["a", "b"], call)).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe("generateWithFallback cooldown", () => {
+  it("skips a model that was busy within the cooldown window", async () => {
+    const call = vi
+      .fn()
+      .mockRejectedValueOnce(busy(503))
+      .mockResolvedValue("from c");
+    await generateWithFallback(["cool-a", "cool-b"], call, 60_000);
+    call.mockClear();
+    await expect(generateWithFallback(["cool-a", "cool-b"], call, 60_000)).resolves.toBe("from c");
+    expect(call.mock.calls.map((c) => c[0])).toEqual(["cool-b"]);
+  });
+
+  it("still tries a cooling model when it is the last option", async () => {
+    const call = vi.fn().mockRejectedValueOnce(busy(503)).mockResolvedValue("ok");
+    await expect(generateWithFallback(["solo"], call, 60_000)).rejects.toMatchObject({ status: 503 });
+    await expect(generateWithFallback(["solo"], call, 60_000)).resolves.toBe("ok");
   });
 });

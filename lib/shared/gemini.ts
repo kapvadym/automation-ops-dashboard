@@ -24,17 +24,36 @@ export function isProviderBusy(error: unknown): boolean {
   return typeof status === "number" && BUSY_STATUSES.has(status);
 }
 
+/** How long a busy model is skipped (per warm instance) before it gets tried again. */
+const BUSY_COOLDOWN_MS = 5 * 60_000;
+const busyUntil = new Map<string, number>();
+
+/** Test hook: forget which models were busy. */
+export function resetBusyModels(): void {
+  busyUntil.clear();
+}
+
 export async function generateWithFallback<T>(
   models: readonly string[],
-  call: (model: string) => Promise<T>
+  call: (model: string) => Promise<T>,
+  cooldownMs = BUSY_COOLDOWN_MS
 ): Promise<T> {
+  // A multi-step agent turn would otherwise wait out the stalled primary on
+  // every step; skip models that just failed, but never skip all of them.
+  const now = Date.now();
+  const ready = models.filter((m) => (busyUntil.get(m) ?? 0) <= now);
+  const candidates = ready.length > 0 ? ready : models.slice(-1);
+
   let lastError: unknown;
-  for (const model of models) {
+  for (const model of candidates) {
     try {
-      return await call(model);
+      const result = await call(model);
+      busyUntil.delete(model);
+      return result;
     } catch (error) {
       if (!isProviderBusy(error)) throw error;
       console.warn(`[gemini] ${model} busy, trying next model:`, (error as Error).message);
+      busyUntil.set(model, Date.now() + cooldownMs);
       lastError = error;
     }
   }
