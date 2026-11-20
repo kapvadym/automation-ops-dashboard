@@ -65,7 +65,7 @@ Answer:`;
     ai.models.generateContent({
       model,
       contents: prompt,
-      config: { httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS } },
+      config: { abortSignal: AbortSignal.timeout(GEMINI_ATTEMPT_TIMEOUT_MS) },
     })
   );
 

@@ -29,7 +29,7 @@ export async function classifyTicket(subject: string, body: string): Promise<Cla
       config: {
         responseMimeType: "application/json",
         responseSchema: classificationResponseSchema,
-        httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS },
+        abortSignal: AbortSignal.timeout(GEMINI_ATTEMPT_TIMEOUT_MS),
       },
     })
   );

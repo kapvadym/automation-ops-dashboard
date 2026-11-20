@@ -42,7 +42,7 @@ export async function runAgentTurn(history: Content[], userMessage: string): Pro
         contents,
         config: {
           tools: [{ functionDeclarations }],
-          httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS },
+          abortSignal: AbortSignal.timeout(GEMINI_ATTEMPT_TIMEOUT_MS),
         },
       })
     );

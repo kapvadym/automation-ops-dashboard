@@ -7,7 +7,11 @@ export const GEMINI_MODELS = [
   process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash-lite",
 ];
 
-/** Per-attempt cap, so a stalled primary still leaves the fallback time inside a route's budget. */
+/**
+ * Per-attempt cap, so a stalled primary still leaves the fallback time inside a route's budget.
+ * Enforce it with a client-side AbortSignal, not httpOptions.timeout — the SDK forwards that as
+ * a server deadline, and Gemini rejects anything under 10s with a 400.
+ */
 export const GEMINI_ATTEMPT_TIMEOUT_MS = 8_000;
 
 const BUSY_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
