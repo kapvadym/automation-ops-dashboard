@@ -4,7 +4,7 @@
 // own capacity pool keeps the demo answering. Both ids are env-overridable.
 export const GEMINI_MODELS = [
   process.env.GEMINI_MODEL ?? "gemini-flash-latest",
-  process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash-lite",
+  process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.5-flash-lite",
 ];
 
 /**
