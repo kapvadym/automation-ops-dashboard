@@ -1,11 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_ATTEMPT_TIMEOUT_MS, GEMINI_MODELS, generateWithFallback } from "@/lib/shared/gemini";
 import {
   classificationResponseSchema,
   parseClassificationResult,
   type ClassificationResult,
 } from "./classification";
-
-const MODEL_NAME = "gemini-flash-latest";
 
 export async function classifyTicket(subject: string, body: string): Promise<ClassificationResult> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -23,14 +22,17 @@ export async function classifyTicket(subject: string, body: string): Promise<Cla
     `Body: ${body}`,
   ].join("\n");
 
-  const result = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: classificationResponseSchema,
-    },
-  });
+  const result = await generateWithFallback(GEMINI_MODELS, (model) =>
+    ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: classificationResponseSchema,
+        httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS },
+      },
+    })
+  );
 
   const text = result.text ?? "";
 

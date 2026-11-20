@@ -4,6 +4,7 @@ import { loadHistory, saveMessage, touchSession } from "@/lib/agent/session";
 import { validateChatRequest } from "@/lib/agent/validate";
 import { agentChatRateLimiter } from "@/lib/shared/rateLimit";
 import { withTimeout } from "@/lib/shared/withTimeout";
+import { isProviderBusy } from "@/lib/shared/gemini";
 
 const CHAT_TIMEOUT_MS = 25_000;
 
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply: result.reply, toolCalls: result.toolCalls });
   } catch (error) {
     if (error instanceof Error && error.message === "timeout") {
+      console.error("[agent] request timed out");
       return NextResponse.json(
         {
           error:
@@ -60,16 +62,11 @@ export async function POST(request: NextRequest) {
 
     console.error(error);
 
-    if (typeof error === "object" && error !== null && "status" in error) {
-      const status = (error as { status?: unknown }).status;
-      if (status === 429) {
-        return NextResponse.json(
-          {
-            error: "The AI provider's free-tier quota is temporarily exhausted. Please try again later.",
-          },
-          { status: 429 }
-        );
-      }
+    if (isProviderBusy(error)) {
+      return NextResponse.json(
+        { error: "The free-tier AI model is busy right now. Please try again in a minute." },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({ error: "Failed to generate a reply" }, { status: 500 });

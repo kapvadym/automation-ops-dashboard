@@ -5,7 +5,7 @@ import {
   type Content,
 } from "@google/genai";
 import { tools, findTool } from "./tools";
-import { withRetry } from "@/lib/shared/retry";
+import { GEMINI_ATTEMPT_TIMEOUT_MS, GEMINI_MODELS, generateWithFallback } from "@/lib/shared/gemini";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -14,8 +14,6 @@ if (!apiKey) {
 }
 
 export const ai = new GoogleGenAI({ apiKey });
-
-export const GEMINI_MODEL = "gemini-flash-latest";
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -38,14 +36,15 @@ export async function runAgentTurn(history: Content[], userMessage: string): Pro
   const toolCallTrace: ToolCallTrace[] = [];
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
-    const response = await withRetry(
-      () =>
-        ai.models.generateContent({
-          model: GEMINI_MODEL,
-          contents,
-          config: { tools: [{ functionDeclarations }] },
-        }),
-      { retries: 1, backoffMs: 1000 }
+    const response = await generateWithFallback(GEMINI_MODELS, (model) =>
+      ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          tools: [{ functionDeclarations }],
+          httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS },
+        },
+      })
     );
 
     const functionCalls = response.functionCalls;

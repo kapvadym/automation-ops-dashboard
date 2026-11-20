@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_ATTEMPT_TIMEOUT_MS, GEMINI_MODELS, generateWithFallback } from "@/lib/shared/gemini";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -10,7 +11,6 @@ const ai = new GoogleGenAI({ apiKey });
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMENSIONS = 768;
-const GENERATION_MODEL = "gemini-flash-latest";
 
 // @google/genai doesn't expose outputDimensionality on its embedContent
 // helper either, so this still goes straight to the REST endpoint — same
@@ -61,10 +61,13 @@ Question: ${question}
 
 Answer:`;
 
-  const result = await ai.models.generateContent({
-    model: GENERATION_MODEL,
-    contents: prompt,
-  });
+  const result = await generateWithFallback(GEMINI_MODELS, (model) =>
+    ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: { httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS } },
+    })
+  );
 
   return result.text ?? "";
 }

@@ -4,6 +4,7 @@ import { generateAnswer } from "@/lib/rag/gemini";
 import { validateQuestion } from "@/lib/rag/validate";
 import { ragAskRateLimiter } from "@/lib/shared/rateLimit";
 import { withTimeout } from "@/lib/shared/withTimeout";
+import { isProviderBusy } from "@/lib/shared/gemini";
 
 const ANSWER_TIMEOUT_MS = 20_000;
 
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "timeout") {
+      console.error("[rag] request timed out");
       return NextResponse.json(
         {
           error:
@@ -63,17 +65,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof error === "object" && error !== null && "status" in error) {
-      const status = (error as { status?: unknown }).status;
-      if (status === 429) {
-        return NextResponse.json(
-          {
-            error:
-              "The AI provider's free-tier quota is temporarily exhausted. Please try again later.",
-          },
-          { status: 429 }
-        );
-      }
+    if (isProviderBusy(error)) {
+      console.error(error);
+      return NextResponse.json(
+        { error: "The free-tier AI model is busy right now. Please try again in a minute." },
+        { status: 503 }
+      );
     }
 
     console.error(error);
