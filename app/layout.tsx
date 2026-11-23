@@ -23,9 +23,13 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute URL for og:image; the per-deployment VERCEL_URL sits behind Vercel SSO and link previews can't fetch it.
+  metadataBase: new URL("https://automation-ops-dashboard.vercel.app"),
   title: "automation-ops-dashboard",
   description:
     "A live systems console demonstrating 4 backend/AI-agent projects: a RAG docs agent, a workflow automation pipeline, a tool-calling agent, and an API key manager.",
+  openGraph: { type: "website", url: "/", siteName: "automation-ops-dashboard" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
